@@ -1,0 +1,24 @@
+# Production configuration
+# used when SPRING_PROFILES_ACTIVE=prod
+# all sensitive values come from Railway environment variables
+# NEVER hardcode passwords here
+
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    # ↑ Railway provides this automatically
+    #   when you add PostgreSQL to your project
+    #   looks like: jdbc:postgresql://host:5432/railway
+
+    username: ${DATABASE_USERNAME}
+    # ↑ set in Railway environment variables
+
+    password: ${DATABASE_PASSWORD}
+    # ↑ set in Railway environment variables
+
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    show-sql: false
+    # ↑ don't log SQL in production
+    #   clutters logs, slight performance hit
