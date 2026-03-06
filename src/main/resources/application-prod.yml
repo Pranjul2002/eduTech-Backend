@@ -1,24 +1,36 @@
-# Production configuration
-# used when SPRING_PROFILES_ACTIVE=prod
-# all sensitive values come from Railway environment variables
-# NEVER hardcode passwords here
-
 spring:
   datasource:
-    url: ${DATABASE_URL}
-    # ↑ Railway provides this automatically
-    #   when you add PostgreSQL to your project
-    #   looks like: jdbc:postgresql://host:5432/railway
+    url: jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}
+    # ↑ building JDBC URL from individual Railway variables
+    #   PGHOST     = monorail.proxy.rlwy.net
+    #   PGPORT     = 12345
+    #   PGDATABASE = railway
+    #   Result: jdbc:postgresql://monorail.proxy.rlwy.net:12345/railway
 
-    username: ${DATABASE_USERNAME}
-    # ↑ set in Railway environment variables
+    username: ${PGUSER}
+    # ↑ postgres
 
-    password: ${DATABASE_PASSWORD}
-    # ↑ set in Railway environment variables
+    password: ${PGPASSWORD}
+    # ↑ the auto-generated secure password
 
     driver-class-name: org.postgresql.Driver
 
+    # Connection pool settings for production
+    hikari:
+      maximum-pool-size: 5
+      # ↑ Railway free tier has connection limits
+      #   keep pool small to stay within limits
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
   jpa:
+    hibernate:
+      ddl-auto: update
+      # ↑ auto-creates tables on Railway PostgreSQL
+      #   just like it did locally
     show-sql: false
-    # ↑ don't log SQL in production
-    #   clutters logs, slight performance hit
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
