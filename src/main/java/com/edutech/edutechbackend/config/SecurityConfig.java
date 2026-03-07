@@ -1,6 +1,5 @@
 package com.edutech.edutechbackend.config;
 
-
 import com.edutech.edutechbackend.service.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -17,6 +16,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 // ↑ tells Spring: this class contains @Bean methods
@@ -113,7 +117,64 @@ public class SecurityConfig {
         //   → failure: throws BadCredentialsException
     }
 
-    // ── BEAN 4: Security Filter Chain (THE RULE BOOK) ────────────────────
+
+    // ── BEAN 4: CORS Configuration ────────────────────────────────────────
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+
+        config.setAllowedOrigins(List.of(
+                "http://localhost:3000",             // local Next.js dev server
+                "https://edu-tech-rouge.vercel.app"  // production Vercel deployment
+        ));
+        // ↑ only these origins are allowed to call our API
+        //   any other domain → browser blocks the request
+        //   exact match required — no wildcards when credentials enabled
+
+        config.setAllowedMethods(List.of(
+                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
+        ));
+        // ↑ OPTIONS is required for CORS preflight requests
+        //   browser sends OPTIONS first to check if request is allowed
+        //   then sends the actual GET/POST/etc if allowed
+
+        config.setAllowedHeaders(List.of(
+                "Authorization",
+                // ↑ required — our JWT token is sent in this header
+                //   Bearer eyJhbGci...
+                "Content-Type",
+                // ↑ required — we send application/json in requests
+                "Accept"
+        ));
+
+        config.setAllowCredentials(true);
+        // ↑ allows Authorization header to be sent cross-origin
+        //   required for JWT authentication to work
+        //   NOTE: when true → allowedOrigins cannot use wildcard (*)
+        //   must be explicit URLs (which we already do above)
+
+        config.setMaxAge(3600L);
+        // ↑ browser caches the preflight OPTIONS response for 3600s (1 hour)
+        //   without this → browser sends OPTIONS before EVERY request
+        //   with this    → browser only sends OPTIONS once per hour
+        //   reduces unnecessary network requests significantly
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration("/**", config);
+        // ↑ applies this CORS config to ALL endpoints
+        //   /api/auth/login    → CORS allowed ✅
+        //   /api/auth/register → CORS allowed ✅
+        //   /api/students/**   → CORS allowed ✅
+        //   everything else    → CORS allowed ✅
+
+        return source;
+    }
+
+
+
+    // ── BEAN 5: Security Filter Chain (THE RULE BOOK) ────────────────────
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http)
             throws Exception {
@@ -122,6 +183,15 @@ public class SecurityConfig {
         //   it's the builder for all security rules
 
         http
+                // ── 1. Enable CORS ────────────────────────────────────────────
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                //    ↑
+                //    tells Spring Security to use our corsConfigurationSource()
+                //    IMPORTANT: must be here AND in corsConfigurationSource() bean
+                //    Spring Security has its own CORS layer separate from Spring MVC
+                //    without this line → Spring Security blocks before CORS headers
+                //    are even added → browser sees blocked request with no CORS headers
+
                 // ── 1. Disable CSRF ───────────────────────────────────────────
                 .csrf(AbstractHttpConfigurer::disable)
                 //    ↑
