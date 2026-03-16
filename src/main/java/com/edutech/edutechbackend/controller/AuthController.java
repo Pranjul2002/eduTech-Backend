@@ -105,6 +105,8 @@ public class AuthController {
         //        @NotBlank on password
         //        fails → 400 Bad Request
 
+        System.out.println("login request: "+ request.getEmail());
+
         AuthResponseDTO response = authService.login(request);
         // ↑ delegates to AuthService:
         //     → authManager.authenticate() → verify credentials
